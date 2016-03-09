@@ -27,6 +27,13 @@ if VERSION >= (1, 7, 0):
     class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         pass
 
+# force errors in top-level module for vertica_python>=0.5
+for e in ('DataError', 'OperationalError', 'IntegrityError', 'InternalError',
+          'ProgrammingError', 'NotSupportedError', 'DatabaseError',
+          'InterfaceError', 'Error'):
+    attr = getattr(Database.errors, e)
+    setattr(Database, e, attr)
+
 
 class DatabaseCreation(BaseDatabaseCreation):
     data_types = {
@@ -271,12 +278,13 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return conn_params
 
     def get_new_connection(self, conn_params):
-        return Database.connect(conn_params)
+        return Database.connect(**conn_params)
 
     def _set_autocommit(self, autocommit):
         mode = "ON" if autocommit else "OFF"
         with self.wrap_database_errors:
-            self.connection.query("SET SESSION AUTOCOMMIT TO %s" % mode)
+            cursor = self.connection.cursor()
+            cursor.execute("SET SESSION AUTOCOMMIT TO %s" % mode)
 
     def create_cursor(self):
         cursor = self.connection.cursor()
